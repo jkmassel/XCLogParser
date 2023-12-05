@@ -48,34 +48,27 @@ jobs:
       image: swift:5.7.1
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
-      # Build with dynamically linked stdlib
-      - name: Build
-        run: swift build -c release
-      - name: Set tag name
-        run: echo "TAG_NAME=$(echo $GITHUB_REF | cut -c 11-)" >> $GITHUB_ENV
-      - name: Zip release
-        uses: montudor/action-zip@v0.1.0
-        with:
-          args: zip -j XCLogParser-linux-amd64.zip .build/release/xclogparser
+      - name: Install zip
+        run: apt update && apt install -y zip
 
-      # Build standalone
-      - name: Build
-        run: swift build -c release --static-swift-stdlib
-      - name: Zip release
-        uses: montudor/action-zip@v0.1.0
-        with:
-          args: zip -j XCLogParser-linux-amd64-standalone.zip .build/release/xclogparser
+      - name: Build Dynamically Linked Binary # Requires Swift to be installed
+        run: |
+          swift build -c release
+          zip -j XCLogParser-linux-amd64-${{github.ref_name}}.zip .build/release/xclogparser
 
-      # Package
-      - name: Rename Zip Files
-        run: "mkdir -p releases && mv *.zip releases/"
+      - name: Build Statically Linked Binary # No external dependencies
+        run: |
+          swift build -c release --static-swift-stdlib
+          zip -j XCLogParser-linux-standalone-amd64-${{github.ref_name}}.zip .build/release/xclogparser
+
+      # Publishing
       - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v1-release
+        uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: releases/*
+          file: "*.zip"
           file_glob: true
           tag: ${{ github.ref }}
           overwrite: true
