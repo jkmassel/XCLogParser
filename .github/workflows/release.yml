@@ -42,40 +42,35 @@ jobs:
           overwrite: true
 
   linux:
-    name: Add Linux binaries to release
     runs-on: ubuntu-latest
     container:
       image: swift:5.7.1
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
-      # Build with dynamically linked stdlib
+      # Dynamically Linked – only works if Swift is installed
       - name: Build
         run: swift build -c release
-      - name: Set tag name
-        run: echo "TAG_NAME=$(echo $GITHUB_REF | cut -c 11-)" >> $GITHUB_ENV
-      - name: Zip release
-        uses: montudor/action-zip@v0.1.0
+
+      - uses: montudor/action-zip@v1
         with:
           args: zip -j XCLogParser-linux-amd64.zip .build/release/xclogparser
 
-      # Build standalone
-      - name: Build
+      # Statically Linked – works on most Linux distributions
+      - name: Build Standalone
         run: swift build -c release --static-swift-stdlib
-      - name: Zip release
-        uses: montudor/action-zip@v0.1.0
-        with:
-          args: zip -j XCLogParser-linux-amd64-standalone.zip .build/release/xclogparser
 
-      # Package
-      - name: Rename Zip Files
-        run: "mkdir -p releases && mv *.zip releases/"
+      - uses: montudor/action-zip@v1
+        with:
+          args: zip -j xclogparser-linux-standalone-amd64.zip .build/release/xclogparser
+
+      # Publish Binaries
       - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v1-release
+        uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: releases/*
+          file: "*.zip"
           file_glob: true
           tag: ${{ github.ref }}
           overwrite: true
